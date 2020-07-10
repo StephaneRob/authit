@@ -1,0 +1,2 @@
+defmodule Authit do
+end

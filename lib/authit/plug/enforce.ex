@@ -11,7 +11,7 @@ defmodule Authit.Plug.Enforce do
         new_conn
       else
         conn
-        |> send_resp(401, "")
+        |> resp(401, "")
       end
     end)
   end

@@ -1,39 +1,48 @@
 defmodule Authit.Plug.Authorize do
   import Plug.Conn
 
-  def init(opts) do
-    resource = Keyword.fetch!(opts, :resource)
-    current_resource = Keyword.get(opts, :current_resource, :current_user)
-    except = Keyword.get(opts, :except, [])
-    %{resource: resource, current_resource: current_resource, except: except}
+  defmodule Options do
+    defstruct [:except, :authorization_module, :current_resource]
   end
 
-  def call(conn, %{resource: resource, current_resource: current_resource, except: except} = opts) do
+  def init(opts) do
+    resource = Keyword.get(opts, :resource)
+
+    authorization_module =
+      opts
+      |> Keyword.get(:authorization_module, authorization_module(resource))
+      |> verify_module!()
+
+    %Options{
+      except: Keyword.get(opts, :except, []),
+      authorization_module: authorization_module,
+      current_resource: Keyword.get(opts, :current_resource, :current_user)
+    }
+  end
+
+  def call(conn, %Options{} = opts) do
     action = conn.private.phoenix_action
     params = conn.params
 
-    authorization_module =
-      Map.get(opts, :authorization_module, authorization_module(resource))
-      |> verify_module!()
-
-    if action in except do
-      permission_checked!(conn)
+    if action in opts.except do
+      permissions_checked!(conn)
     else
-      case apply(authorization_module, :can?, [
-             conn.assigns[current_resource],
+      case apply(opts.authorization_module, :can?, [
+             conn.assigns[opts.current_resource],
              action,
              params
            ]) do
         {:ok, assigns} ->
           conn
           |> merge_assigns(assigns)
-          |> permission_checked!()
+          |> permissions_checked!()
 
         true ->
-          permission_checked!(conn)
+          permissions_checked!(conn)
 
         _ ->
           conn
+          |> permissions_checked!()
           |> send_resp(403, "")
           |> halt()
       end
@@ -47,20 +56,22 @@ defmodule Authit.Plug.Authorize do
   defp verify_module!(module) do
     if not function_exported?(module, :valid_authit_authorizer?, 0) do
       raise """
-      Invalid authorizer. Make sure to `use Authit.Helper`
+      Invalid authorizer. Make sure to `use Authit.Authorizer`
 
       ```
       defmodule MyApp.Resource.Authorizer do
-        use Authit.Helper
+        use Authit.Authorizer
 
         can?(_, _, _, do: true)
       end
       ```
       """
     end
+
+    module
   end
 
-  defp permission_checked!(conn) do
-    assign(conn, :permission_checked, true)
+  defp permissions_checked!(conn) do
+    assign(conn, :permissions_checked, true)
   end
 end

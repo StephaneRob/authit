@@ -132,3 +132,50 @@ defmodule HelloWeb.PageController do
   end
 end
 ```
+
+### Define your own responses
+
+Authit will handle by default the responses in case of failed authorization.
+You can configure that by implementing your own ResponseHandler.
+
+```elixir
+defmodule HelloWeb.AuthorizationResponseHandler do
+  @behaviour Authit.ResponseHandler
+
+  import Plug.Conn
+
+  @impl true
+  def forbidden(conn) do
+    conn
+    |> put_status(403)
+    |> render("forbidden.html")
+  end
+
+  @impl true
+  def unauthorized(conn) do
+    conn
+    |> put_status(401)
+    |> render("unauthorized.html")
+  end
+end
+```
+
+Then, you can pass it for a given controller :
+
+```elixir
+defmodule HelloWeb.PageController do
+  use HelloWeb, :controller
+  plug Authit.Plug.Authorize,
+    resource: Hello.Pages.Page,
+    response_handler: HelloWeb.AuthorizationResponseHandler
+
+  def index(conn, _params) do
+    render(conn, "index.html")
+  end
+end
+```
+
+or into `config.exs` to enable it globally:
+```elixir
+config :authit, response_handler: HelloWeb.AuthorizationResponseHandler
+```

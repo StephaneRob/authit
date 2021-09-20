@@ -1,17 +1,18 @@
 defmodule Authit.Plug.Enforce do
-  import Plug.Conn
+  alias Authit.ResponseHandler
 
   def init(opts) do
     opts
   end
 
-  def call(conn, _) do
+  def call(conn, opts) do
     Plug.Conn.register_before_send(conn, fn new_conn ->
       if new_conn.assigns[:permissions_checked] do
         new_conn
       else
-        conn
-        |> resp(401, "")
+        :authit
+        |> Application.get_env(:response_handler, Authit.DefaultResponseHandler)
+        |> ResponseHandler.unauthorized(conn)
       end
     end)
   end

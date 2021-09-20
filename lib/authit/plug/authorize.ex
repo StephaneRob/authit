@@ -1,8 +1,15 @@
 defmodule Authit.Plug.Authorize do
   import Plug.Conn
 
+  alias Authit.ResponseHandler
+
   defmodule Options do
-    defstruct [:except, :authorization_module, :current_resource]
+    defstruct [
+      :except,
+      :authorization_module,
+      :current_resource,
+      :response_handler
+    ]
   end
 
   def init(opts) do
@@ -16,7 +23,8 @@ defmodule Authit.Plug.Authorize do
     %Options{
       except: Keyword.get(opts, :except, []),
       authorization_module: authorization_module,
-      current_resource: Keyword.get(opts, :current_resource, :current_user)
+      current_resource: Keyword.get(opts, :current_resource, :current_user),
+      response_handler: Keyword.get(opts, :response_handler)
     }
   end
 
@@ -24,27 +32,28 @@ defmodule Authit.Plug.Authorize do
     action = conn.private.phoenix_action
     params = conn.params
 
-    if action in opts.except do
-      permissions_checked!(conn)
-    else
-      case apply(opts.authorization_module, :can?, [
-             conn.assigns[opts.current_resource],
-             action,
-             params
-           ]) do
+    # Either ways permissions has been checked (valid or not)
+    conn = permissions_checked!(conn)
+
+    if action not in opts.except do
+      opts.authorization_module
+      |> apply(:can?, [
+        conn.assigns[opts.current_resource],
+        action,
+        params
+      ])
+      |> case do
         {:ok, assigns} ->
           conn
           |> merge_assigns(assigns)
-          |> permissions_checked!()
 
         true ->
-          permissions_checked!(conn)
+          conn
 
         _ ->
-          conn
-          |> permissions_checked!()
-          |> send_resp(403, "")
-          |> halt()
+          opts
+          |> response_handler()
+          |> ResponseHandler.forbidden(conn)
       end
     end
   end
@@ -73,5 +82,14 @@ defmodule Authit.Plug.Authorize do
 
   defp permissions_checked!(conn) do
     assign(conn, :permissions_checked, true)
+  end
+
+  defp response_handler(%{response_handler: response_handler})
+       when not is_nil(response_handler) do
+    response_handler
+  end
+
+  defp response_handler(_) do
+    Application.get_env(:authit, :response_handler, Authit.DefaultResponseHandler)
   end
 end

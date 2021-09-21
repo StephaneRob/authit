@@ -133,6 +133,39 @@ defmodule HelloWeb.PageController do
 end
 ```
 
+### Handle errors
+
+in the same way `true` will allow the resource, `false` will be interpreted as un unauthorized error. But errors can be describe as tuples too.
+
+for ex : 
+`{:error, :not_found}` will response with 404
+`{:error, :forbidden}` will response with 403 (same as false)
+
+also, `nil` will be interpreted as `{:error, :not_found}`
+
+```elixir
+defmodule Hello.Pages.Page.Authorizer do
+  use Authit.Authorizer
+  # handle not found errors
+  can?(current_user, :delete, %{"id" => id}) do
+    case Hello.Pages.get(id) do
+      nil -> {:error, :not_found}
+
+      page -> current_user.id == page.author_id
+    end
+  end
+
+  # same as
+  can?(current_user, :delete, %{"id" => id}) do
+    case Hello.Pages.get(id) do
+      nil -> nil
+
+      page -> current_user.id == page.author_id
+    end
+  end
+end
+```
+
 ### Define your own responses
 
 Authit will handle by default the responses in case of failed authorization.

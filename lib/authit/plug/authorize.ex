@@ -35,14 +35,18 @@ defmodule Authit.Plug.Authorize do
     # Either ways permissions has been checked (valid or not)
     conn = permissions_checked!(conn)
 
-    if action not in opts.except do
-      opts.authorization_module
-      |> apply(:can?, [
-        conn.assigns[opts.current_resource],
-        action,
-        params
-      ])
-      |> case do
+    if action in opts.except do
+      conn
+    else
+      response =
+        apply(opts.authorization_module, :can?, [
+          conn,
+          conn.assigns[opts.current_resource],
+          action,
+          params
+        ])
+
+      case response do
         {:ok, assigns} ->
           conn
           |> merge_assigns(assigns)
@@ -50,13 +54,17 @@ defmodule Authit.Plug.Authorize do
         true ->
           conn
 
-        _ ->
-          opts
-          |> response_handler()
-          |> ResponseHandler.forbidden(conn)
+        error ->
+          response_type = error_kind(error)
+          handler = response_handler(opts)
+
+          apply(ResponseHandler, response_type, [handler, conn])
       end
     end
   end
+
+  defp error_kind({:error, :not_found}), do: :not_found
+  defp error_kind(_), do: :forbidden
 
   defp authorization_module(resource) do
     Module.concat([resource, Authorizer])

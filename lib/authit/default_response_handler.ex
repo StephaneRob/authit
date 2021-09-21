@@ -6,12 +6,24 @@ defmodule Authit.DefaultResponseHandler do
   @impl true
   @spec forbidden(Plug.Conn.t()) :: Plug.Conn.t()
   def forbidden(conn) do
-    resp(conn, 403, "{error: \"forbidden\"}")
+    conn
+    |> put_resp_content_type("application/json")
+    |> resp(403, "{\"error\": \"forbidden\"}")
   end
 
   @impl true
   @spec unauthorized(Plug.Conn.t()) :: Plug.Conn.t()
   def unauthorized(conn) do
-    resp(conn, 401, "{error: \"unauthorized\"}")
+    conn
+    |> put_resp_content_type("application/json")
+    |> resp(401, "{\"error\": \"unauthorized\"}")
+  end
+
+  @impl true
+  @spec not_found(Plug.Conn.t()) :: Plug.Conn.t()
+  def not_found(conn) do
+    conn
+    |> put_resp_content_type("application/json")
+    |> resp(404, "{\"error\": \"not_found\"}")
   end
 end

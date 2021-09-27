@@ -15,14 +15,10 @@ defmodule Authit.Plug.Authorize do
   def init(opts) do
     resource = Keyword.get(opts, :resource)
 
-    authorization_module =
-      opts
-      |> Keyword.get(:authorization_module, authorization_module(resource))
-      |> verify_module!()
-
     %Options{
       except: Keyword.get(opts, :except, []),
-      authorization_module: authorization_module,
+      authorization_module:
+        Keyword.get(opts, :authorization_module, authorization_module(resource)),
       current_resource: Keyword.get(opts, :current_resource, :current_user),
       response_handler: Keyword.get(opts, :response_handler)
     }
@@ -32,6 +28,8 @@ defmodule Authit.Plug.Authorize do
     action = conn.private.phoenix_action
     params = conn.params
 
+    authorization_module = verify_module!(opts.authorization_module)
+
     # Either ways permissions has been checked (valid or not)
     conn = permissions_checked!(conn)
 
@@ -39,7 +37,7 @@ defmodule Authit.Plug.Authorize do
       conn
     else
       response =
-        apply(opts.authorization_module, :can?, [
+        apply(authorization_module, :can?, [
           conn,
           conn.assigns[opts.current_resource],
           action,
@@ -79,7 +77,7 @@ defmodule Authit.Plug.Authorize do
       defmodule MyApp.Resource.Authorizer do
         use Authit.Authorizer
 
-        can?(_, _, _, do: true)
+        can?(_, _, _, _, do: true)
       end
       ```
       """

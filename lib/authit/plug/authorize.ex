@@ -1,44 +1,68 @@
 defmodule Authit.Plug.Authorize do
   import Plug.Conn
 
-  def init(opts) do
-    resource = Keyword.fetch!(opts, :resource)
-    current_resource = Keyword.get(opts, :current_resource, :current_user)
-    except = Keyword.get(opts, :except, [])
-    %{resource: resource, current_resource: current_resource, except: except}
+  alias Authit.ResponseHandler
+
+  defmodule Options do
+    defstruct [
+      :except,
+      :authorization_module,
+      :current_resource,
+      :response_handler
+    ]
   end
 
-  def call(conn, %{resource: resource, current_resource: current_resource, except: except} = opts) do
+  def init(opts) do
+    resource = Keyword.get(opts, :resource)
+
+    %Options{
+      except: Keyword.get(opts, :except, []),
+      authorization_module:
+        Keyword.get(opts, :authorization_module, authorization_module(resource)),
+      current_resource: Keyword.get(opts, :current_resource, :current_user),
+      response_handler: Keyword.get(opts, :response_handler)
+    }
+  end
+
+  def call(conn, %Options{} = opts) do
     action = conn.private.phoenix_action
     params = conn.params
 
-    authorization_module =
-      Map.get(opts, :authorization_module, authorization_module(resource))
-      |> verify_module!()
+    authorization_module = verify_module!(opts.authorization_module)
 
-    if action in except do
-      permission_checked!(conn)
+    # Either ways permissions has been checked (valid or not)
+    conn = permissions_checked!(conn)
+
+    if action in opts.except do
+      conn
     else
-      case apply(authorization_module, :can?, [
-             conn.assigns[current_resource],
-             action,
-             params
-           ]) do
+      response =
+        apply(authorization_module, :can?, [
+          conn,
+          conn.assigns[opts.current_resource],
+          action,
+          params
+        ])
+
+      case response do
         {:ok, assigns} ->
           conn
           |> merge_assigns(assigns)
-          |> permission_checked!()
 
         true ->
-          permission_checked!(conn)
-
-        _ ->
           conn
-          |> send_resp(403, "")
-          |> halt()
+
+        error ->
+          response_type = error_kind(error)
+          handler = response_handler(opts)
+
+          apply(ResponseHandler, response_type, [handler, conn])
       end
     end
   end
+
+  defp error_kind({:error, :not_found}), do: :not_found
+  defp error_kind(_), do: :forbidden
 
   defp authorization_module(resource) do
     Module.concat([resource, Authorizer])
@@ -47,20 +71,31 @@ defmodule Authit.Plug.Authorize do
   defp verify_module!(module) do
     if not function_exported?(module, :valid_authit_authorizer?, 0) do
       raise """
-      Invalid authorizer. Make sure to `use Authit.Helper`
+      Invalid authorizer. Make sure to `use Authit.Authorizer`
 
       ```
       defmodule MyApp.Resource.Authorizer do
-        use Authit.Helper
+        use Authit.Authorizer
 
-        can?(_, _, _, do: true)
+        can?(_, _, _, _, do: true)
       end
       ```
       """
     end
+
+    module
   end
 
-  defp permission_checked!(conn) do
-    assign(conn, :permission_checked, true)
+  defp permissions_checked!(conn) do
+    assign(conn, :permissions_checked, true)
+  end
+
+  defp response_handler(%{response_handler: response_handler})
+       when not is_nil(response_handler) do
+    response_handler
+  end
+
+  defp response_handler(_) do
+    Application.get_env(:authit, :response_handler, Authit.DefaultResponseHandler)
   end
 end

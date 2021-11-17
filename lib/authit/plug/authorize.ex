@@ -69,21 +69,23 @@ defmodule Authit.Plug.Authorize do
   end
 
   defp verify_module!(module) do
-    if not function_exported?(module, :valid_authit_authorizer?, 0) do
-      raise """
-      Invalid authorizer. Make sure to `use Authit.Authorizer`
+    try do
+      apply(module, :valid_authit_authorizer?, [])
+      module
+    rescue
+      _ ->
+        raise """
+        Invalid authorizer. Make sure to `use Authit.Authorizer`
 
-      ```
-      defmodule MyApp.Resource.Authorizer do
-        use Authit.Authorizer
+        ```
+        defmodule MyApp.Resource.Authorizer do
+          use Authit.Authorizer
 
-        can?(_, _, _, _, do: true)
-      end
-      ```
-      """
+          can?(_, _, _, _, do: true)
+        end
+        ```
+        """
     end
-
-    module
   end
 
   defp permissions_checked!(conn) do

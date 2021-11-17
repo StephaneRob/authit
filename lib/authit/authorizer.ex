@@ -14,9 +14,10 @@ defmodule Authit.Authorizer do
     end
   end
 
-  defmacro can?(conn, role, action, params, do: block) do
+  @spec can?(Plug.Conn.t(), map(), atom(), map(), any()) :: Macro.t()
+  defmacro can?(conn, current_resource, action, params, do: block) do
     quote do
-      def can?(unquote(conn), unquote(role), unquote(action), unquote(params)) do
+      def can?(unquote(conn), unquote(current_resource), unquote(action), unquote(params)) do
         unquote(block)
       end
     end

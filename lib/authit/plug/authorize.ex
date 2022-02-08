@@ -29,9 +29,7 @@ defmodule Authit.Plug.Authorize do
     params = conn.params
 
     authorization_module = verify_module!(opts.authorization_module)
-
-    # Either ways permissions has been checked (valid or not)
-    conn = permissions_checked!(conn)
+    Process.put(Authit.key(), true)
 
     if action in opts.except do
       conn
@@ -86,10 +84,6 @@ defmodule Authit.Plug.Authorize do
         ```
         """
     end
-  end
-
-  defp permissions_checked!(conn) do
-    assign(conn, :permissions_checked, true)
   end
 
   defp response_handler(%{response_handler: response_handler})

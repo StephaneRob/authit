@@ -7,7 +7,7 @@ defmodule Authit.Plug.Enforce do
 
   def call(conn, _opts) do
     Plug.Conn.register_before_send(conn, fn new_conn ->
-      if new_conn.assigns[:permissions_checked] do
+      if Process.get(Authit.key(), false) do
         new_conn
       else
         :authit

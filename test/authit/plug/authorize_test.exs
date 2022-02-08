@@ -62,48 +62,38 @@ defmodule Authit.Plug.AuthorizeTest do
 
     @tag action: :show
     test "show return a 403", %{options: options, conn: conn} do
-      refute conn.assigns[:permissions_checked]
-      %{status: status, resp_body: resp_body} = conn = Authit.Plug.Authorize.call(conn, options)
+      %{status: status, resp_body: resp_body} = Authit.Plug.Authorize.call(conn, options)
       assert status == 403
       assert resp_body == "{\"error\": \"forbidden\"}"
-      assert conn.assigns[:permissions_checked]
     end
 
     @tag action: :index
     test "index continue", %{options: options, conn: conn} do
-      refute conn.assigns[:permissions_checked]
-      %{status: status, resp_body: resp_body} = conn = Authit.Plug.Authorize.call(conn, options)
+      %{status: status, resp_body: resp_body} = Authit.Plug.Authorize.call(conn, options)
       refute status
       refute resp_body
-      assert conn.assigns[:permissions_checked]
     end
 
     @tag action: :whatever
     test "whatever (undefined action) return 403", %{options: options, conn: conn} do
-      refute conn.assigns[:permissions_checked]
-      %{status: status, resp_body: resp_body} = conn = Authit.Plug.Authorize.call(conn, options)
+      %{status: status, resp_body: resp_body} = Authit.Plug.Authorize.call(conn, options)
       assert status == 403
       assert resp_body == "{\"error\": \"forbidden\"}"
-      assert conn.assigns[:permissions_checked]
     end
 
     @tag action: :show_with_assigns
     test "show with assign continue and add assigns", %{options: options, conn: conn} do
-      refute conn.assigns[:permissions_checked]
       %{status: status, resp_body: resp_body} = conn = Authit.Plug.Authorize.call(conn, options)
       refute status
       refute resp_body
-      assert conn.assigns[:permissions_checked]
       assert conn.assigns[:page] == "Hello world"
     end
 
     @tag action: :show_with_not_found
     test "show with not found return 404", %{options: options, conn: conn} do
-      refute conn.assigns[:permissions_checked]
-      %{status: status, resp_body: resp_body} = conn = Authit.Plug.Authorize.call(conn, options)
+      %{status: status, resp_body: resp_body} = Authit.Plug.Authorize.call(conn, options)
       assert status == 404
       assert resp_body == "{\"error\": \"not_found\"}"
-      assert conn.assigns[:permissions_checked]
     end
   end
 end

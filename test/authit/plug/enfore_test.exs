@@ -5,7 +5,7 @@ defmodule Authit.Plug.EnforceTest do
   test "must register a before send call back" do
     conn = conn(:get, "/")
     conn = Authit.Plug.Enforce.call(conn, [])
-    assert [before_send] = conn.before_send
+    assert [before_send] = Map.get(conn, :private).before_send
     conn = before_send.(conn)
     assert conn.status == 401
     assert conn.resp_body == "{\"error\": \"unauthorized\"}"

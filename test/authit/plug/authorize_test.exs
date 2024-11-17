@@ -6,7 +6,7 @@ defmodule Authit.Plug.AuthorizeTest do
     setup do
       options =
         Authit.Plug.Authorize.init(
-          resource: Hello.Pages.Page,
+          authorizer: Hello.Pages.Page.Authorizer,
           current_resource: :current_user
         )
 
@@ -32,14 +32,14 @@ defmodule Authit.Plug.AuthorizeTest do
     defmodule Hello.Pages.Page.Authorizer do
       use Authit.Authorizer
 
-      can? _, _, :show, _, do: false
-      can? _, _, :index, _, do: true
+      def can?(_, _, :show, _), do: false
+      def can?(_, _, :index, _), do: true
 
-      can? _, _, :show_with_assigns, _ do
+      def can?(_, _, :show_with_assigns, _) do
         {:ok, page: "Hello world"}
       end
 
-      can? _, _, :show_with_not_found, _ do
+      def can?(_, _, :show_with_not_found, _) do
         {:error, :not_found}
       end
     end
@@ -47,7 +47,7 @@ defmodule Authit.Plug.AuthorizeTest do
     setup ctx do
       options =
         Authit.Plug.Authorize.init(
-          resource: Hello.Pages.Page,
+          authorizer: Hello.Pages.Page.Authorizer,
           current_resource: :current_user
         )
 

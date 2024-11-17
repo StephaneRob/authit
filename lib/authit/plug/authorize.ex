@@ -6,29 +6,26 @@ defmodule Authit.Plug.Authorize do
   defmodule Options do
     defstruct [
       :except,
-      :authorization_module,
+      :authorizer,
       :current_resource,
       :response_handler
     ]
   end
 
   def init(opts) do
-    resource = Keyword.get(opts, :resource)
-
     %Options{
       except: Keyword.get(opts, :except, []),
-      authorization_module:
-        Keyword.get(opts, :authorization_module, authorization_module(resource)),
+      authorizer: Keyword.get(opts, :authorizer),
       current_resource: Keyword.get(opts, :current_resource, :current_user),
       response_handler: Keyword.get(opts, :response_handler)
     }
   end
 
-  def call(conn, %Options{} = opts) do
+  def call(conn, %Options{authorizer: authorizer} = opts) do
     action = conn.private.phoenix_action
     params = conn.params
 
-    authorization_module = verify_module!(opts.authorization_module)
+    authorizer = verify_authorizer!(authorizer)
 
     # Either ways permissions has been checked (valid or not)
     conn = permissions_checked!(conn)
@@ -37,7 +34,7 @@ defmodule Authit.Plug.Authorize do
       conn
     else
       response =
-        apply(authorization_module, :can?, [
+        apply(authorizer, :can?, [
           conn,
           conn.assigns[opts.current_resource],
           action,
@@ -64,11 +61,14 @@ defmodule Authit.Plug.Authorize do
   defp error_kind({:error, :not_found}), do: :not_found
   defp error_kind(_), do: :forbidden
 
-  defp authorization_module(resource) do
-    Module.concat([resource, Authorizer])
+  defp verify_authorizer!(nil) do
+    raise """
+    Make sure to pass an authorization module to `Authit.Plug.Authorize`
+    ```
+    """
   end
 
-  defp verify_module!(module) do
+  defp verify_authorizer!(module) do
     try do
       apply(module, :valid_authit_authorizer?, [])
       module

@@ -1,9 +1,16 @@
 defmodule Authit.Authorizer do
+  @callback can?(
+              conn :: Plug.Conn.t(),
+              current_resource :: map(),
+              action :: atom(),
+              params :: map()
+            ) :: true | false | {:ok, assigns :: keyword()}
+
   defmacro __using__(_) do
     quote do
+      @behaviour Authit.Authorizer
       # import Authit.Authorizer
       @before_compile Authit.Authorizer
-      @callback can?(Plug.Conn.t(), map(), atom(), map()) :: true | false
 
       def valid_authit_authorizer?, do: true
     end
